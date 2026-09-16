@@ -248,7 +248,6 @@ label.field { display: block; font-size: 12px; color: var(--muted); font-weight:
 .fig-svg .back line { stroke: #5a6272; }
 .fig-svg .prop { stroke: var(--accent); stroke-width: 3; opacity: .85; }
 .fig-svg .floor { stroke: var(--line); stroke-width: 3; }
-.fig-svg g { transform-box: view-box; }
 
 @media (prefers-reduced-motion: reduce) { .fig-svg * { animation: none !important; } }
 @media (min-width: 560px) { .lib-grid { grid-template-columns: repeat(3, 1fr); } }

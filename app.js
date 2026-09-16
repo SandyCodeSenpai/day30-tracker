@@ -23,7 +23,7 @@ const mmss = sec => `${Math.floor(sec / 60)}:${pad(Math.max(0, Math.ceil(sec % 6
 const KEY = 'day30-state-v1';
 const DEFAULT = () => ({
   startMonday: mondayOf(todayStr()), pushupLevel: 'wall_pushup', autoRest: true, sound: true,
-  logs: {}, weights: [], waist: [], installDismissed: false
+  logs: {}, weights: [], waist: [], installDismissed: false, anim: true
 });
 let S = DEFAULT();
 try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(DEFAULT(), JSON.parse(raw)); } catch (e) { /* ignore */ }
@@ -65,17 +65,18 @@ function dayProgress(dateStr) {
 
 /* ---------- stick figure ---------- */
 const POSE0 = { x: 0, y: 0, rot: 0, torso: 0, uL: 0, uR: null, fL: 0, fR: null, tL: 0, tR: null, sL: 0, sR: null };
+const PARTS = ['body', 'torso', 'uL', 'uR', 'fL', 'fR', 'tL', 'tR', 'sL', 'sR'];
 function normPose(p) {
   const o = Object.assign({}, POSE0, p);
   if (o.uR == null) o.uR = o.uL; if (o.fR == null) o.fR = o.fL; if (o.tR == null) o.tR = o.tL; if (o.sR == null) o.sR = o.sL;
   return o;
 }
-const piv = (px, py, deg) => `translate(${px}px,${py}px) rotate(${deg}deg) translate(${-px}px,${-py}px)`;
+/* SVG transform attributes (user units, no CSS units needed) */
 const partTransforms = p => ({
-  body: `translate(${p.x}px,${p.y}px) rotate(${p.rot}deg)`,
-  torso: `rotate(${p.torso}deg)`,
-  uL: piv(0, -40, p.uL), uR: piv(0, -40, p.uR), fL: piv(0, -12, p.fL), fR: piv(0, -12, p.fR),
-  tL: `rotate(${p.tL}deg)`, tR: `rotate(${p.tR}deg)`, sL: piv(0, 35, p.sL), sR: piv(0, 35, p.sR)
+  body: `translate(${p.x} ${p.y}) rotate(${p.rot})`,
+  torso: `rotate(${p.torso})`,
+  uL: `rotate(${p.uL} 0 -40)`, uR: `rotate(${p.uR} 0 -40)`, fL: `rotate(${p.fL} 0 -12)`, fR: `rotate(${p.fR} 0 -12)`,
+  tL: `rotate(${p.tL})`, tR: `rotate(${p.tR})`, sL: `rotate(${p.sL} 0 35)`, sR: `rotate(${p.sR} 0 35)`
 });
 function propSVG(props) {
   let out = '';
@@ -96,14 +97,14 @@ function propSVG(props) {
 function figureSVG(anim) {
   const p = normPose(anim.poses[0]); const t = partTransforms(p);
   const foot = anim.noFoot ? '' : '<line x1="0" y1="70" x2="10" y2="70"/>';
-  const leg = side => `<g data-part="t${side}" style="transform:${t['t' + side]}"><line x1="0" y1="0" x2="0" y2="35"/><g data-part="s${side}" style="transform:${t['s' + side]}"><line x1="0" y1="35" x2="0" y2="70"/>${foot}</g></g>`;
-  const arm = side => `<g data-part="u${side}" style="transform:${t['u' + side]}"><line x1="0" y1="-40" x2="0" y2="-12"/><g data-part="f${side}" style="transform:${t['f' + side]}"><line x1="0" y1="-12" x2="0" y2="12"/></g></g>`;
+  const leg = side => `<g data-part="t${side}" transform="${t['t' + side]}"><line x1="0" y1="0" x2="0" y2="35"/><g data-part="s${side}" transform="${t['s' + side]}"><line x1="0" y1="35" x2="0" y2="70"/>${foot}</g></g>`;
+  const arm = side => `<g data-part="u${side}" transform="${t['u' + side]}"><line x1="0" y1="-40" x2="0" y2="-12"/><g data-part="f${side}" transform="${t['f' + side]}"><line x1="0" y1="-12" x2="0" y2="12"/></g></g>`;
   const wide = anim.floor || (anim.props && anim.props.length);
   return `<svg class="fig-svg" viewBox="${wide ? '-100 -88 200 168' : '-64 -88 128 168'}" xmlns="http://www.w3.org/2000/svg">
     <line class="floor" x1="-100" y1="70" x2="100" y2="70"/>${propSVG(anim.props)}
-    <g data-part="body" style="transform:${t.body}">
+    <g data-part="body" transform="${t.body}">
       <g class="back">${leg('R')}</g>
-      <g data-part="torso" style="transform:${t.torso}">
+      <g data-part="torso" transform="${t.torso}">
         <g class="back">${arm('R')}</g>
         <line x1="0" y1="0" x2="0" y2="-40"/><circle class="head" cx="0" cy="-53" r="8.5"/>
         ${arm('L')}
@@ -111,22 +112,38 @@ function figureSVG(anim) {
       ${leg('L')}
     </g></svg>`;
 }
+/* One shared low-rate ticker drives every visible figure: cheap on phones, never blocks scrolling. */
+const FPS = 14;
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const figures = new Set();
 const figObserver = 'IntersectionObserver' in window ? new IntersectionObserver(entries => {
-  entries.forEach(e => (e.target._anims || []).forEach(a => e.isIntersecting ? a.play() : a.pause()));
-}, { rootMargin: '80px' }) : null;
+  entries.forEach(e => { e.target._visible = e.isIntersecting; });
+}, { rootMargin: '40px' }) : null;
 function animateFigures(root) {
   $$('.fig-svg[data-anim]', root).forEach(svg => {
-    const anim = EX[svg.dataset.anim]?.anim; if (!anim || svg._anims) return;
-    const frames = anim.poses.map(p => partTransforms(normPose(p)));
-    const opts = { duration: anim.dur, iterations: Infinity, easing: 'ease-in-out', direction: frames.length === 2 ? 'alternate' : 'normal' };
-    svg._anims = $$('[data-part]', svg).map(el => {
-      const key = el.dataset.part; const kf = frames.map(f => ({ transform: f[key] }));
-      if (frames.length > 2) kf.push({ transform: frames[0][key] });
-      return el.animate(kf, opts);
-    });
-    if (figObserver) figObserver.observe(svg);
+    const anim = EX[svg.dataset.anim]?.anim; if (!anim || svg._reg) return;
+    svg._reg = true; svg._visible = !figObserver; svg._phase = Math.random() * 2 * anim.dur;
+    svg._poses = anim.poses.map(normPose); svg._dur = anim.dur;
+    svg._parts = {}; $$('[data-part]', svg).forEach(el => svg._parts[el.dataset.part] = el);
+    figures.add(svg); if (figObserver) figObserver.observe(svg);
   });
 }
+const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+function tickFigures() {
+  if (document.hidden || reduceMotion || S.anim === false) return;
+  const now = performance.now();
+  figures.forEach(svg => {
+    if (!svg.isConnected) { figures.delete(svg); if (figObserver) figObserver.unobserve(svg); return; }
+    if (!svg._visible) return;
+    const P = svg._poses, seg = P.length === 2 ? 2 : P.length; const cycle = seg * svg._dur;
+    const u = ((now + svg._phase) % cycle) / svg._dur; const i = Math.floor(u); const k = ease(u - i);
+    const a = P.length === 2 ? P[i % 2] : P[i % P.length], b = P.length === 2 ? P[(i + 1) % 2] : P[(i + 1) % P.length];
+    const q = {}; for (const key in POSE0) q[key] = a[key] + (b[key] - a[key]) * k;
+    const t = partTransforms(q);
+    PARTS.forEach(part => { const el = svg._parts[part]; if (el) el.setAttribute('transform', t[part]); });
+  });
+}
+if (!reduceMotion) setInterval(tickFigures, Math.round(1000 / FPS));
 const fig = id => `<div data-fig>${figureSVG(EX[id].anim).replace('<svg ', `<svg data-anim="${id}" `)}</div>`;
 
 /* ---------- toast ---------- */
@@ -284,7 +301,8 @@ function renderPlan() {
   let html = `<div class="card"><div class="row between"><b>Program start (Monday)</b><input type="date" data-start value="${S.startMonday}" style="width:auto"></div>
     <div class="row between mt"><b>Push-up level</b><select data-pushup style="width:auto">${PUSHUP_LEVELS.map(l => `<option value="${l.id}" ${l.id === S.pushupLevel ? 'selected' : ''}>${l.label}</option>`).join('')}</select></div>
     <div class="row between mt"><b>Auto rest timer after a set</b><button class="chip ${S.autoRest ? 'on' : ''}" data-autorest>${S.autoRest ? 'On' : 'Off'}</button></div>
-    <div class="row between mt"><b>Timer sounds</b><button class="chip ${S.sound ? 'on' : ''}" data-sound>${S.sound ? 'On' : 'Off'}</button></div></div>
+    <div class="row between mt"><b>Timer sounds</b><button class="chip ${S.sound ? 'on' : ''}" data-sound>${S.sound ? 'On' : 'Off'}</button></div>
+    <div class="row between mt"><b>Animated figures</b><button class="chip ${S.anim !== false ? 'on' : ''}" data-anim-toggle>${S.anim !== false ? 'On' : 'Off'}</button></div></div>
     <div class="legend"><span><i style="background:var(--accent-2)"></i>A</span><span><i style="background:var(--blue)"></i>B</span><span><i style="background:var(--green)"></i>Cardio + shoulder</span><span><i style="background:var(--yellow)"></i>Easy cardio</span><span><i style="background:var(--muted)"></i>Rest</span></div>`;
   for (let w = 1; w <= PLAN.weeks; w++) {
     const first = addDays(S.startMonday, (w - 1) * 7);
@@ -423,6 +441,7 @@ function bind() {
   const st = $('[data-start]'); if (st) st.onchange = () => { if (!st.value) return; S.startMonday = mondayOf(st.value); save(); render(); toast(`Week 1 starts Monday ${shortDate(S.startMonday)}`); };
   const ar = $('[data-autorest]'); if (ar) ar.onclick = () => { S.autoRest = !S.autoRest; save(); render(); };
   const so = $('[data-sound]'); if (so) so.onclick = () => { S.sound = !S.sound; save(); render(); };
+  const an = $('[data-anim-toggle]'); if (an) an.onclick = () => { S.anim = S.anim === false; save(); render(); };
   $$('[data-day]').forEach(b => b.onclick = () => { viewDate = b.dataset.day; tab = 'today'; render(); });
   const ib = $('[data-install]'); if (ib) ib.onclick = doInstall;
   /* library */
