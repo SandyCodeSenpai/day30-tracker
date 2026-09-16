@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Day 30 · Calisthenics Tracker</title>
+  <meta name="description" content="4-week beginner home calisthenics tracker with animated exercises, timers and progress logs.">
+  <meta name="theme-color" content="#0f1115">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Day 30">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-dot"></span>DAY 30</div>
+    <div id="topbar-right" class="topbar-right"></div>
+  </header>
+
+  <main id="view" class="view"></main>
+
+  <nav class="tabbar" id="tabbar">
+    <button data-tab="today" class="tab active"><svg viewBox="0 0 24 24"><path d="M12 3 2 12h3v8h5v-6h4v6h5v-8h3z"/></svg><span>Today</span></button>
+    <button data-tab="plan" class="tab"><svg viewBox="0 0 24 24"><path d="M3 4h18v4H3zm0 6h8v10H3zm10 0h8v10h-8z"/></svg><span>Plan</span></button>
+    <button data-tab="exercises" class="tab"><svg viewBox="0 0 24 24"><path d="M12 2a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM9 8h6l3 6-1.7 1L15 12v10h-2v-6h-2v6H9V12l-1.3 3L6 14z"/></svg><span>Moves</span></button>
+    <button data-tab="progress" class="tab"><svg viewBox="0 0 24 24"><path d="M3 21V10h4v11zm7 0V3h4v18zm7 0v-7h4v7z"/></svg><span>Progress</span></button>
+  </nav>
+
+  <div id="timer" class="timer-sheet" hidden>
+    <div class="timer-card">
+      <button class="timer-close" id="timer-close" aria-label="Close">✕</button>
+      <div class="timer-label" id="timer-label">Rest</div>
+      <div class="timer-sub" id="timer-sub"></div>
+      <svg class="timer-ring" viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r="52" class="ring-bg"/>
+        <circle cx="60" cy="60" r="52" class="ring-fg" id="ring-fg"/>
+      </svg>
+      <div class="timer-time" id="timer-time">0:00</div>
+      <div class="timer-figure" id="timer-figure"></div>
+      <div class="timer-actions">
+        <button class="btn ghost" id="timer-minus">−15 s</button>
+        <button class="btn primary" id="timer-toggle">Pause</button>
+        <button class="btn ghost" id="timer-plus">+15 s</button>
+      </div>
+      <button class="btn skip" id="timer-skip">Skip</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <div id="install-banner" class="install-banner" hidden>
+    <span>Install this tracker on your home screen for offline use.</span>
+    <button class="btn small primary" id="install-btn">Install</button>
+    <button class="btn small ghost" id="install-dismiss">Later</button>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
