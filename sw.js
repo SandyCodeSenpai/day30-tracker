@@ -1,4 +1,4 @@
-const VERSION = 'day30-v1';
+const VERSION = 'day30-v2';
 const ASSETS = ['./', './index.html', './styles.css', './app.js', './data.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png'];
 self.addEventListener('install', e => {

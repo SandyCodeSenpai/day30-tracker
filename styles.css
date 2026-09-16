@@ -19,12 +19,11 @@
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 [hidden] { display: none !important; }
-html, body { max-width: 100%; overflow-x: hidden; }
 html { color-scheme: dark; }
 body {
   margin: 0; background: var(--bg); color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
-  font-size: 15px; line-height: 1.45; overscroll-behavior-y: none;
+  font-size: 15px; line-height: 1.45; -webkit-overflow-scrolling: touch;
   -webkit-font-smoothing: antialiased;
 }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
